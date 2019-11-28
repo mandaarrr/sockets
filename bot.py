@@ -7,8 +7,8 @@ HEADER_LENGTH = 10
 
 IP = "10.201.120.28"
 PORT = 8000
-my_username = input("Username: ")
-my_realname = input("Real Name: ")
+my_username = "RawBot"
+my_realname = "bot"
 
 # Create a socket
 # socket.AF_INET - address family, IPv4, some otehr possible are AF_INET6, AF_BLUETOOTH, AF_UNIX
@@ -32,17 +32,6 @@ realname_header = f"{len(realname):<{HEADER_LENGTH}}".encode('utf-8')
 client_socket.send(realname_header + realname)
 
 while True:
-
-    # Wait for user to input a message
-    message = input(f'{my_username} > ')
-
-    # If message is not empty - send it
-    if message:
-
-        # Encode message to bytes, prepare header and convert to bytes, like for username above, then send
-        message = message.encode('utf-8')
-        message_header = f"{len(message):<{HEADER_LENGTH}}".encode('utf-8')
-        client_socket.send(message_header + message)
 
     try:
         # Now we want to loop over received messages (there might be more than one) and print them
@@ -79,10 +68,27 @@ while True:
             print('Reading error: {}'.format(str(e)))
             sys.exit()
 
-        # We just did not receive anything
-        continue
+    # We just did not receive anything
+    continue
 
-    except Exception as e:
-        # Any other exception - something happened, exit
-        print('Reading error: '.format(str(e)))
-        sys.exit()
+    try:
+
+        if {message} == "test":
+            message = {my_username} > "TEST"
+
+        # If message is not empty - send it
+        if message:
+
+            # Encode message to bytes, prepare header and convert to bytes, like for username above, then send
+            message = message.encode('utf-8')
+            message_header = f"{len(message):<{HEADER_LENGTH}}".encode('utf-8')
+            client_socket.send(message_header + message)
+
+    except IOError as e:
+    # This is normal on non blocking connections - when there are no incoming data error is going to be raised
+    # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
+    # We are going to check for both - if one of them - that's expected, means no incoming data, continue as normal
+    # If we got different error code - something happened
+        if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
+            print('Reading error: {}'.format(str(e)))
+            sys.exit()

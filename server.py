@@ -8,6 +8,7 @@ HEADER_LENGTH = 10
 
 IP = "127.0.0.1"
 PORT = 8000
+#hello
 
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

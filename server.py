@@ -23,21 +23,26 @@ sockets_list = [server_socket]
 clients = {}
 channels = {"#global":[]}
 
-'''
-- user joins a channel
-- program checks if they are in any channel besides the channel they just joined
-- if they're in other channel, kick them out and append them to new one
-'''
+print("Listening for connections on {}:{}".format(IP, PORT))
 
-print(f'Listening for connections on {IP}:{PORT}...')
+def sendMessage(client_socket, user_header, user_value, message_header, message_value):
+    user_value = user_value.decode("utf-8")
+
+    user_channel = ""
+
+    for i, v in channels.items():
+        if user_value in v:
+            user_channel = i
+
+    
+
 
 def listChannels():
 
     print("")
     print("List of Channels:")
-    for i in range(len(channels)):
-        print("{} - {}".format(i + 1, channels[i]))
-    print("")
+    for i,v in channels.items():
+        print(i,v)
 
 def addChannel(user_data, message_data):
     global currentChannel
@@ -50,29 +55,21 @@ def addChannel(user_data, message_data):
     if channelName[0] != "#":
         channelName = "#" + channelName
 
-
+    #check if channel is new or not
     count = 0
     for i in channels:
+
         if i != channelName:
             count += 1
             if count == len(channels):
                 channels[channelName] = [user_data]
-                print("{} is joining {}".format(user_data, channelName))
                 break
         else:
-            print("{} is joining {}".format(user_data, channelName))
             channels[channelName].append(user_data)
 
-    removeUser(user_data, channelName)
-    
+    print("{} is joining {}".format(user_data, channelName))
 
-    '''
-    for k, v in user.items():
-        if v.decode('utf-8').find(user_data) != -1:
-            user['ChannelName'] = currentChannel
-            print("yeet")
-            break
-    '''
+    removeUser(user_data, channelName)
 
 def checkChannels():
     
@@ -93,13 +90,6 @@ def removeUser(user_data, channelName):
 
     checkChannels()
 
-
-def getChannelInfo():
-    if currentChannel != "":
-        print("You are in {}".format(currentChannel))
-    else:
-        print("You are not in a channel")
-
 def leaveChannel():
     global currentChannel
     print("You have left {}".format(currentChannel))
@@ -111,13 +101,8 @@ def commandCheck(user_data, message_data):
         addChannel(user_data, message_data[5:])
     elif message_data.find("LIST") == 0:
         listChannels()
-    elif message_data.find("INFO") == 0:
-        getChannelInfo()
     elif message_data.find("LEAVE") == 0:
         leaveChannel()
-    elif message_data.find("LOOP") == 0:
-        for i,v in channels.items():
-            print(i,v)
         
 
 # Handles message receiving
@@ -197,11 +182,12 @@ while True:
             # Get user by notified socket, so we will know who sent the message
             user = clients[notified_socket]
 
-            print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
-
             user_data = user["data"].decode('utf-8')
             message_data = message["data"].decode('utf-8')
-        
+
+            print("Received message from {}: {}".format(user_data, message_data))
+            #print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}'
+
             commandCheck(user_data, message_data)
  
             # Iterate over connected clients and broadcast message
@@ -210,9 +196,21 @@ while True:
                 # But don't sent it to sender
                 if client_socket != notified_socket:
 
+                    print("Client socket: {}".format(client_socket))
+                    
+                    
+                    """print("")
+                    print("Clients: {}".format(clients))
+                    print("")
+                    print("User: {}".format(user))"""
+
+                    sendMessage(client_socket, user['header'], user['data'], message['header'], message['data'])
+
                     # Send user and message (both with their headers)
-                    # We are reusing here message header sent by sender, and saved username header send by user when he connected
-                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+                    # We are reusing message header sent by sender, and saved username header send by user when he connected
+                    
+                    #HERE
+                    #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
 
     # It's not really necessary to have this, but will handle some socket exceptions just in case
     for notified_socket in exception_sockets:
@@ -222,4 +220,3 @@ while True:
 
         # Remove from our list of users
         del clients[notified_socket]
-

@@ -5,7 +5,7 @@ import sys
 
 HEADER_LENGTH = 10
 
-IP = "127.0.0.1"
+IP = "10.201.135.166"
 PORT = 8000
 my_username = input("Username: ")
 my_realname = input("Real Name: ")

@@ -6,7 +6,21 @@ currentChannel = ""
 
 HEADER_LENGTH = 10
 
-IP = "127.0.0.1"
+IP = ""
+
+# Function to display hostname and 
+# IP address 
+def get_Host_name_IP(): 
+    global IP
+    try: 
+        host_name = socket.gethostname() 
+        IP = socket.gethostbyname(host_name)
+    except: 
+        print("Unable to get Hostname and IP") 
+  
+# Driver code 
+get_Host_name_IP() #Function call 
+
 PORT = 8000
 #hello
 

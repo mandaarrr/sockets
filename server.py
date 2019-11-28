@@ -2,13 +2,14 @@ import socket
 import select
 import string
 
-currentChannel = ""
-
 HEADER_LENGTH = 10
 
 IP = "127.0.0.1"
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 PORT = 8000
-#hello
 
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,6 +25,7 @@ sockets_list = [server_socket]
 clients = {}
 channels = {"#global":[]}
 
+<<<<<<< Updated upstream
 '''
 - user joins a channel
 - program checks if they are in any channel besides the channel they just joined
@@ -31,17 +33,68 @@ channels = {"#global":[]}
 '''
 
 print(f'Listening for connections on {IP}:{PORT}...')
+=======
+print("Listening for connections on {}:{}".format(IP, PORT))
+
+def sendMessage(client_socket, notified_details):
+
+    client_details = str(client_socket)
+    client_details = client_details[client_details.find("raddr"):]
+    client_details = client_details[client_details.find(",")+1:-2]
+    client_details = ''.join(client_details.split())
+    client_details = client_details
+
+    """print("Client details: {}".format(client_details))
+    print("Notified details: {}".format(notified_details))"""
+
+    message_value = message['data'].decode('utf-8')
+
+    if message_value.find("PRIVMSG") == 0:
+        name = message_value[8:]
+        values = name.split( )
+        print(values)
+        name = values[0]
+        print(name)
+        for i,v in clients.items():
+            if str(v).find(name) != -1:
+                if str(client_socket) in str(i):
+
+                    print("Client socket: {}".format(str(client_socket)))
+                    print("Str i: {}".format(str(i)))
+                    message_value = values[1]
+                    message['data'] = message_value.encode('utf-8')
+
+                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+                    return 1
+    else:
+        listChannels()
+
+        for i, v in channels.items():
+            if notified_details in v:
+                if client_details in v:
+                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+                    break
+
+    
+    #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+>>>>>>> Stashed changes
 
 def listChannels():
 
     print("")
     print("List of Channels:")
+<<<<<<< Updated upstream
     for i in range(len(channels)):
         print("{} - {}".format(i + 1, channels[i]))
     print("")
+=======
+    for i,v in channels.items():
+        print(i,v)
+    print("")
 
-def addChannel(user_data, message_data):
-    global currentChannel
+def addChannel(sender_details, message_data):
+>>>>>>> Stashed changes
+
     channelName = message_data
 
     #get rid of whitespace
@@ -53,6 +106,7 @@ def addChannel(user_data, message_data):
 
 
     count = 0
+<<<<<<< Updated upstream
     for i in channels:
         if i != channelName:
             count += 1
@@ -74,6 +128,28 @@ def addChannel(user_data, message_data):
             print("yeet")
             break
     '''
+=======
+    for i, v in channels.items():
+
+        if i != channelName:
+            count += 1
+            if count == len(channels):
+                print("{} is now joining {}".format(sender_details, channelName))
+
+                channels[channelName] = [sender_details]
+                break
+        else:
+            if sender_details in v:
+                print("Already in channel")
+            else:
+                print("{} is joining {}".format(sender_details, channelName))
+                channels[channelName].append(sender_details)
+                break
+
+    print("")
+
+    removeUser(sender_details, channelName)
+>>>>>>> Stashed changes
 
 def checkChannels():
     
@@ -84,16 +160,17 @@ def checkChannels():
                 del channels[i]
                 break
 
-def removeUser(user_data, channelName):
+def removeUser(sender_details, channelName):
 
     for i,v in channels.items():
         if i != channelName:
-            if user_data in v:
-                v.remove(user_data)
-                print("Removed {} from {}".format(user_data, i))
+            if sender_details in v:
+                v.remove(sender_details)
+                print("Removed {} from {}".format(sender_details, i))
 
     checkChannels()
 
+<<<<<<< Updated upstream
 
 def getChannelInfo():
     if currentChannel != "":
@@ -108,10 +185,14 @@ def leaveChannel():
 
 
 def commandCheck(user_data, message_data):
+=======
+def commandCheck(sender_details, message_data):
+>>>>>>> Stashed changes
     if message_data.find("JOIN") == 0:
-        addChannel(user_data, message_data[5:])
+        addChannel(sender_details, message_data[5:])
     elif message_data.find("LIST") == 0:
         listChannels()
+<<<<<<< Updated upstream
     elif message_data.find("INFO") == 0:
         getChannelInfo()
     elif message_data.find("LEAVE") == 0:
@@ -119,8 +200,9 @@ def commandCheck(user_data, message_data):
     elif message_data.find("LOOP") == 0:
         for i,v in channels.items():
             print(i,v)
+=======
+>>>>>>> Stashed changes
         
-
 # Handles message receiving
 def receive_message(client_socket):
 
@@ -149,7 +231,6 @@ while True:
 
     read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list)
 
-
     # Iterate over notified sockets
     for notified_socket in read_sockets:
 
@@ -160,8 +241,8 @@ while True:
             # That gives us new socket - client socket, connected to this given client only, it's unique for that client
             # The other returned object is ip/port set
             client_socket, client_address = server_socket.accept()
-
-            # Client should send his nameright away, receive it
+            
+            # Client should send his name right away, receive it
             user = receive_message(client_socket)
             realname = receive_message(client_socket)
 
@@ -175,9 +256,14 @@ while True:
             # Also save username and username header
             clients[client_socket] = user
 
+            client_details = str(client_address)
+            client_details = client_details[client_details.find(",")+1:-1]
+            client_details = ''.join(client_details.split())
+            client_details = client_details
+
             print('Accepted new connection from {}:{}'.format(*client_address))
             print('Username: {}, Real Name: {}'.format(user['data'].decode('utf-8'), realname['data'].decode('utf-8')))
-            addChannel(user['data'].decode('utf-8'), "#global")
+            addChannel(client_details, "#global")
         # Else existing socket is sending a message
         else:
             # Receive message
@@ -198,6 +284,7 @@ while True:
             # Get user by notified socket, so we will know who sent the message
             user = clients[notified_socket]
 
+<<<<<<< Updated upstream
             print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
 
             user_data = user["data"].decode('utf-8')
@@ -214,6 +301,38 @@ while True:
                     # Send user and message (both with their headers)
                     # We are reusing here message header sent by sender, and saved username header send by user when he connected
                     client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+=======
+            user_data = user['data'].decode('utf-8')
+            message_data = message["data"].decode('utf-8')
+            
+            print("Received message from {}: {}".format(user_data, message_data))
+            #print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}'
+
+            notified_details = str(notified_socket)
+            notified_details = notified_details[notified_details.find("raddr"):]
+            notified_details = notified_details[notified_details.find(",")+1:-2]
+            notified_details = ''.join(notified_details.split())
+            notified_details = notified_details
+            
+
+            if message_data.find("JOIN") != -1 or message_data == "LIST":
+                commandCheck(notified_details, message_data)
+            else:
+                # Iterate over connected clients and broadcast message
+                for client_socket in clients:
+
+                    # But don't sent it to sender
+                    if client_socket != notified_socket:
+                        
+                        if sendMessage(client_socket, notified_details) == 1:
+                            break
+
+
+                            # Send user and message (both with their headers)
+                            # We are reusing message header sent by sender, and saved username header send by user when he connected
+                            #HERE
+                            #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+>>>>>>> Stashed changes
 
     # It's not really necessary to have this, but will handle some socket exceptions just in case
     for notified_socket in exception_sockets:

@@ -2,13 +2,26 @@ import socket
 import select
 import errno
 import sys
+import datetime
 
 HEADER_LENGTH = 10
 
-IP = "10.201.120.28"
+IP = "10.201.135.166"
 PORT = 8000
-my_username = input("Username: ")
-my_realname = input("Real Name: ")
+my_username = "ProBot"
+my_realname = "ProBot"
+
+def getDayOfTheWeek(i):
+    switcher={
+            0:'Sunday',
+            1:'Monday',
+            2:'Tuesday',
+            3:'Wednesday',
+            4:'Thursday',
+            5:'Friday',
+            6:'Saturday'
+            }
+    return switcher.get(i,"Invalid day of week")
 
 # Create a socket
 # socket.AF_INET - address family, IPv4, some otehr possible are AF_INET6, AF_BLUETOOTH, AF_UNIX
@@ -24,25 +37,14 @@ client_socket.setblocking(False)
 # Prepare username and header and send them
 # We need to encode username to bytes, then count number of bytes and prepare header of fixed size, that we encode to bytes as well
 username = my_username.encode('utf-8')
-username_header = f"{len(username):<{HEADER_LENGTH}}".encode('utf-8')
-client_socket.send(username_header + username)
+#username_header = f"{len(username):<{HEADER_LENGTH}}".encode('utf-8')
+client_socket.send(username)
 
 realname = my_realname.encode('utf-8')
-realname_header = f"{len(realname):<{HEADER_LENGTH}}".encode('utf-8')
-client_socket.send(realname_header + realname)
+#realname_header = f"{len(realname):<{HEADER_LENGTH}}".encode('utf-8')
+client_socket.send(realname)
 
 while True:
-
-    # Wait for user to input a message
-    message = input(f'{my_username} > ')
-
-    # If message is not empty - send it
-    if message:
-
-        # Encode message to bytes, prepare header and convert to bytes, like for username above, then send
-        message = message.encode('utf-8')
-        message_header = f"{len(message):<{HEADER_LENGTH}}".encode('utf-8')
-        client_socket.send(message_header + message)
 
     try:
         # Now we want to loop over received messages (there might be more than one) and print them
@@ -69,6 +71,24 @@ while True:
 
             # Print message
             print(f'{username} > {message}')
+
+            if message == "!time":
+                currenthour = datetime.datetime.now().time().hour
+                currentminute = datetime.datetime.now().time().minute
+                currentsecond = datetime.datetime.now().time().second
+                botmessage = (f'The current time is {currenthour}:{currentminute}:{currentsecond}')
+            
+            if message == "!day":
+                dayindex = datetime.datetime.now().isoweekday()
+                currentday = getDayOfTheWeek(dayindex)
+                botmessage = (f'Today is a lovely {currentday}!')
+
+            if botmessage:
+                message = botmessage
+                botmessage = ""
+                message = message.encode('utf-8')
+                message_header = f"{len(message):<{HEADER_LENGTH}}".encode('utf-8')
+                client_socket.send(message_header + message)
 
     except IOError as e:
         # This is normal on non blocking connections - when there are no incoming data error is going to be raised

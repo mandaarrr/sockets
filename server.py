@@ -5,6 +5,7 @@ import string
 HEADER_LENGTH = 10
 
 IP = "10.201.135.166"
+
 PORT = 8000
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -62,6 +63,7 @@ def listChannels():
     for i,v in channels.items():
         print(i,v)
     print("")
+
 
 def addChannel(sender_details, message_data):
 
@@ -122,7 +124,6 @@ def removeUser(sender_details, channelName):
 def commandCheck(sender_details, message_data):
     if message_data.find("JOIN") == 0:
         addChannel(sender_details, message_data[5:])
-
         
 # Handles message receiving
 def receive_message(client_socket):
@@ -203,6 +204,7 @@ while True:
         else:
             # Receive message
             message = receive_message(notified_socket)
+
             message = str(message)
             #message.decode('utf-8')
             message = ''.join(message.split())

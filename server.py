@@ -1,13 +1,41 @@
+#Reference for handling sockets: https://pythonprogramming.net/sockets-tutorial-python-3
+#2019-AC31008-Networks-Dignan-Duguid-Tamhane
+
+#import various libraries for use later in code
 import socket
 import select
 import string
+import sys
 
-HEADER_LENGTH = 10
+#Get IP and PORT from user from command line
+IP = ""
+PORT = 0
+arg_split = str(sys.argv).split(" ")
 
-IP = "10.201.135.166"
+if len(arg_split) == 3:
+    IP = str(arg_split[1])
+    IP = IP[IP.find("'") + 1: IP.find(",") -1]
+    PORT = str(arg_split[2])
+    PORT = PORT[PORT.find("'") + 1: PORT.find("'") -2]
+    
+else:
+    print("Only {} arguments given".format(len(arg_split)))
+    print("Please enter arguments in form 'python3 server.py IP PORT'")
+    exit(0)
 
-PORT = 8000
+PORT = int(PORT)
+print("IP: {}".format(IP))
+print("PORT: {}".format(PORT))
 
+#get IP dynamically
+#try:
+  #  host_name = socket.gethostname()
+ #   IP = socket.gethostbyname(host_name)
+#except:
+    #print("Couldn't get dynamic IP")
+
+
+#create server socket, bind to IP and PORT, then tell it to listen
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.bind((IP, PORT))
@@ -16,55 +44,61 @@ server_socket.listen()
 # List of sockets for select.select()
 sockets_list = [server_socket]
 
-# List of connected clients - socket as a key, user header and name as data
+# Dictionary of connected clients - socket info as a key, username and nickname as data
 clients = {}
-channels = {"#global":[]}
 
-print("Listening for connections on {}:{}".format(IP, PORT))
+# Dictionary of channels - channel as key, list of client ports as data
+channels = {"#test":[]}
 
-def sendMessage(client_socket, notified_details, message_value):
 
+print("\nListening for connections on {}:{} \n".format(IP, PORT))
+
+#Method for sending a message from one person to another
+def sendMessage(client_socket, notified_socket, notified_details, message):
+    
+    #Get client port from client socket details via string manipulation
     client_details = str(client_socket)
     client_details = client_details[client_details.find("raddr"):]
     client_details = client_details[client_details.find(",")+1:-2]
-    client_details = ''.join(client_details.split())
-    client_details = client_details
-
-    if message_value.find("PRIVMSG") == 0:
-        name = message_value[8:]
-        values = name.split( )
-        print(values)
-        name = values[0]
-        print(name)
-        for i,v in clients.items():
-            if str(v).find(name) != -1:
-                if str(client_socket) in str(i):
-
-                    message_value = message_value.encode('utf-8')
-
-                    client_socket.send(message_value)
-                    return 1
-    else:
-        listChannels()
-
-        for i, v in channels.items():
-            if notified_details in v:
-                if client_details in v:
-                    client_socket.send(message_value)
-                    break
-
+    client_details = ''.join(client_details.split())   
     
-    #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+    #Split message into different sections 
+    message_split = message.decode("utf-8")
+    message_split = message_split.split(" ")
+    
+    #If PRVIMSG is found by the server
+    if message_split[0].find("PRIVMSG") != -1:
 
+        #For each client in clients dictionary, get the port number and get rid of whitespace
+        #i = client socket info in clients dictionary
+        #v = nickname:username info in clients dictionary
+        for i, v in  clients.items():
+            temp = str(i)
+            temp = temp[temp.find("raddr"):]
+            temp = temp[temp.find(",")+1:-2]
+            temp = ''.join(temp.split())
+
+            #If the client's port is the one who's sending the details            
+            if temp in notified_details:
+
+                #Form the message that's to be returned to hexchat/bot client. Get username from v
+                message_value = ":" + v[v.find(":") + 1:] + "!" + v[:v.find(":")] + "@" + str(IP) + " PRIVMSG " + str(message_split[1]) + " " + message_split[2] + "\r\n"
+                message_value = message_value.encode("utf-8")
+
+                #Send message
+                client_socket.send(message_value)
+
+#Function for listing channels in server console
 def listChannels():
 
-    print("")
+    #output all items in channels dictionary
     print("List of Channels:")
     for i,v in channels.items():
         print(i,v)
     print("")
 
-
+#Program goes here to add entry to channel dictionary, and send info to hexchat.
+#Receives the person asking to join channel via sender details parameter, and the channel name via message_data
 def addChannel(sender_details, message_data):
 
     channelName = message_data
@@ -76,7 +110,7 @@ def addChannel(sender_details, message_data):
     if channelName[0] != "#":
         channelName = "#" + channelName
 
-    #check if channel is new or not
+    #check if channel is new or not by looping through channels and counting how mamy times it appears
     count = 0
     for i, v in channels.items():
 
@@ -88,31 +122,43 @@ def addChannel(sender_details, message_data):
                 channels[channelName] = [sender_details]
                 break
         else:
+            #User is already in dictionary
             if sender_details in v:
                 print("Already in channel")
             else:
                 print("{} is joining {}".format(sender_details, channelName))
-                channels[channelName].append(sender_details)
+                channels[channelName].append(sender_details) #Add new details to channels dictionary
                 break
 
     print("")
 
-    removeUser(sender_details, channelName)
+    #Send neccesary info back to hexchat to join the channel
+    for i, v in clients.items():
+        if sender_details in str(i):
+            #Form the message code to be sent back, getting names from the dictionarys
+            line = ":" + v[v.find(":") + 1:] + "!" + v[:v.find(":")] + "@" + str(IP) + " JOIN " + channelName + "\r\n"
+            line = line.encode('utf-8')
+            if "ProBot" not in v: 
+                print("JOINING: {}".format(line))
+                notified_socket.send(line)
+
+    #call remove user with new channel user details to see if they're in any other channels, and remove if so     
+    removeUser(sender_details, channelName, nickname, username)
     listChannels()
 
+#Method used to delete any channels with no clients in them
 def checkChannels():
     
     for i,v in channels.items():
         if len(v) == 0:
-            if i != "#global":
+            if i != "#test":
                 print('Deleting {}'.format(i))
                 del channels[i]
                 break
 
-    listChannels()
-
-def removeUser(sender_details, channelName):
-
+#Method removes a user from channel when they join another channel
+def removeUser(sender_details, channelName, nickname, username):
+    
     for i,v in channels.items():
         if i != channelName:
             if sender_details in v:
@@ -121,24 +167,22 @@ def removeUser(sender_details, channelName):
 
     checkChannels()
 
+#Command check is used to call neccesary functions whenever a command message is sent from client
 def commandCheck(sender_details, message_data):
     if message_data.find("JOIN") == 0:
         addChannel(sender_details, message_data[5:])
         
 # Handles message receiving
 def receive_message(client_socket):
+
+    #If client sent message, return it. Otherwise, the client left abruptly (ctr-c, etc) and handle error 
     try:
-
         return client_socket.recv(1024)
-
     except:
-
-        # If we are here, client closed connection violently, for example by pressing ctrl+c on his script
-        # or just lost his connection
-        # socket.close() also invokes socket.shutdown(socket.SHUT_RDWR) what sends information about closing the socket (shutdown read/write)
-        # and that's also a cause when we receive an empty message
+        print("Client exited abruptly")
         return False
 
+#When hexchat user leaves, get rid of their details from channels dictioanry
 def wipeUser(notified_details):
 
     for i, v in channels.items():
@@ -147,125 +191,122 @@ def wipeUser(notified_details):
 
     checkChannels()
 
+#Main loop, looks for joining sockets
 while True:
 
+    #Receive socket information 
     read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list)
 
-    # Iterate over notified sockets
+    # Loop continously through notified sockets
     for notified_socket in read_sockets:
 
-        # If notified socket is a server socket - new connection, accept it
+        # If any of the sockets is a new socket, get their details into the system
         if notified_socket == server_socket:
-
-            # Accept new connection
-            # That gives us new socket - client socket, connected to this given client only, it's unique for that client
-            # The other returned object is ip/port set
-            client_socket, client_address = server_socket.accept()
             
-            # Client should send his name right away, receive it
+            #Get the new connection, and store its unique details in client_socket and client_address, respectively
+            client_socket, client_address = server_socket.accept()
 
-            print("1")
+            print('\Received new connection from {}:{}\n'.format(*client_address))
+            
+            #Get user ino from socket via receive message method
             user = receive_message(client_socket)
-            print("2")
-            user = receive_message(client_socket)
 
-            realname = str(user)
-            realname = realname[realname.find(":") + 1: -5 ]
-            print("Real Name: {}".format(realname))
+            #If message includes CAP LS 302 and NICK in same line, it will be the bot sending the information
+            if str(user).find("CAP") != -1:
+                if str(user).find("NICK") != -1:
 
-            nickname = str(user)
-            nickname = nickname[nickname.find("NICK") + 5: nickname.find("\\")]
-            print("Nickname: {}".format(nickname))
+                    username = "ProBot"
+                    nickname = "ProBot"
+                #Otherwise, if get next line of message for hexchat client information (NICK and USER)
+                else:
+                    user = receive_message(client_socket)
 
-            print(user)
-            # If False - client disconnected before he sent his name
+                    realname = str(user)
+                    realname = realname[realname.find(":") + 1: -5 ]
+                    print("Real Name: {}".format(realname))
+
+                    username = str(user)
+                    username = username.split(" ")
+                    username = username[2]
+                    print("Username: {}".format(username))
+
+                    nickname = str(user)
+                    nickname = nickname[nickname.find("NICK") + 5: nickname.find("\\")]
+                    print("Nickname: {}".format(nickname))
+
+
+            # If user is false, the client left without setting their name 
             if user is False:
                 continue
 
-            # Add accepted socket to select.select() list
+            # Add new socket to socket list
             sockets_list.append(client_socket)
 
-            # Also save username and username header
-            clients[client_socket] = user
-
+            #Save the new client socket details in client dictionary, with client socket as key and username:nickname as data
+            clients[client_socket] = username + ":" + nickname
+            
+            #Get client's unique port
             client_details = str(client_address)
             client_details = client_details[client_details.find(",")+1:-1]
             client_details = ''.join(client_details.split())
-            client_details = client_details
 
-            print('Accepted new connection from {}:{}'.format(*client_address))
-            #print('Username: {}, Real Name: {}'.format())
-            addChannel(client_details, "#global")
+            #If the bot is connecting, get his details and add him to the default #test channel
+            if "ProBot" in username:
+                addChannel(client_details, "#test")
+                bot_details = client_details
 
-            msg = "hello".encode('utf-8')
-            client_socket.send(msg)
+            #List the channels for the server log
+            listChannels();
 
-        # Else existing socket is sending a message
+        #If socket already in server, it means they're sending a message
         else:
             # Receive message
             message = receive_message(notified_socket)
 
-            message = str(message)
-            #message.decode('utf-8')
-            message = ''.join(message.split())
-            if len(message) == 0:
-                print(notified_socket)
+            #Get the messaging socket's port number
+            notified_details = str(notified_socket)
+            notified_details = notified_details[notified_details.find("raddr"):]
+            notified_details = notified_details[notified_details.find(",")+1:-2]
+            notified_details = ''.join(notified_details.split())
 
-                notified_details = str(notified_socket)
-                notified_details = notified_details[notified_details.find("raddr"):]
-                notified_details = notified_details[notified_details.find(",")+1:-2]
-                notified_details = ''.join(notified_details.split())
-                notified_details = notified_details
-
-                # If False, client disconnected, cleanup
-                if message is False or str(message).find("QUIT") != -1:
-                    
-                    print('Closed connection from: {}'.format(nickname))
-
-                    print("Notified details: {}".format(notified_details))
-                    wipeUser(notified_details)
-
-                    # Remove from list for socket.socket()
-                    sockets_list.remove(notified_socket)
+            # If the message is false or the client sent back "QUIT", close their connection and wipe their details from the program
+            if message is False or str(message).find("QUIT") != -1:
                 
-                    # Remove from our list of users
-                    del clients[notified_socket]
+                print('Closed connection from: {}'.format(nickname))
 
-                    continue
-                
-                # Get user by notified socket, so we will know who sent the message
-                user = clients[notified_socket]
+                wipeUser(notified_details)
 
-                print("Received message from {}".format(nickname))
-                #print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}'
-                
-                message_data = message.decode('utf-8')
+                # Remove from socket list
+                sockets_list.remove(notified_socket)
+            
+                # Remove them from our list of clients
+                del clients[notified_socket]
 
-                print("Message Data: {}".format(message_data))
-                if message_data.find("JOIN") != -1:
-                    if len(message_data) != 4:
-                        commandCheck(notified_details, message_data)
-                else:
-                    # Iterate over connected clients and broadcast message
-                    for client_socket in clients:
+                continue
+            
+            # Get the client from notified socket, so we will know who sent the message
+            user = clients[notified_socket]
 
-                        # But don't sent it to sender
-                        if client_socket != notified_socket:
-                            
-                            if sendMessage(client_socket, notified_details, message_data) == 1:
-                                break
+            print("Received message from {}".format(notified_details))
 
+            #Decode the message            
+            message_data = message.decode('utf-8')
 
-                                # Send user and message (both with their headers)
-                                # We are reusing message header sent by sender, and saved username header send by user when he connected
-                                #HERE
-                                #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+            #if the message has a keyword, call commandCheck to deal with it
+            if message_data.find("JOIN") != -1:
+                commandCheck(notified_details, message_data)
+            #Otherwise, its a normal message
+            else:
+                # Iterate over connected clients and broadcast message
+                for client_socket in clients:
 
-    # It's not really necessary to have this, but will handle some socket exceptions just in case
+                    # Make sure the person sneding the message doesn't receive it, only the other clients
+                    if client_socket != notified_socket:
+                        #If everything went fine, don't loop again, just break out of the loop and wait again
+                        if sendMessage(client_socket, notified_socket, notified_details, message) == 1:
+                            break
+
+#These lines handle exceptions incase something goes wrong in the loop
     for notified_socket in exception_sockets:
-
-        # Remove from list for socket.socket()
         sockets_list.remove(notified_socket)
-
-        # Remove from our list of users
         del clients[notified_socket]

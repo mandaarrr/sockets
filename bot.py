@@ -1,18 +1,41 @@
+#Reference for Sockets: https://pythonprogramming.net/sockets-tutorial-python-3
+#2019-AC31008-Networks-Dignan-Duguid-Tamhane
+
 import socket
 import select
 import errno
 import sys
 import datetime
+import random
+import sys
 
-HEADER_LENGTH = 10
 
-IP = "10.201.135.166"
-PORT = 8000
+#Get IP and PORT from user from command line
+IP = ""
+PORT = 0
+arg_split = str(sys.argv).split(" ")
+
+if len(arg_split) == 3:
+    IP = str(arg_split[1])
+    IP = IP[IP.find("'") + 1: IP.find(",") -1]
+    PORT = str(arg_split[2])
+    PORT = PORT[PORT.find("'") + 1: PORT.find("'") -2]
+    PORT = int(PORT)
+    
+else:
+    print("Only {} arguments given".format(len(arg_split)))
+    print("Please enter arguments in form 'python3 server.py IP PORT'")
+    exit(0)
+
+print("IP: {}".format(IP))
+print("PORT: {}".format(PORT))
+
 my_username = "ProBot"
-my_realname = "ProBot"
 
+
+#Function to get Day of the Week from dictionary via key paramter, i
 def getDayOfTheWeek(i):
-    switcher={
+    dayDict={
             0:'Sunday',
             1:'Monday',
             2:'Tuesday',
@@ -21,88 +44,94 @@ def getDayOfTheWeek(i):
             5:'Friday',
             6:'Saturday'
             }
-    return switcher.get(i,"Invalid day of week")
+    return dayDict.get(i,"Today is someday. I'm just a bot and I forgot the days of the week.")
 
-# Create a socket
-# socket.AF_INET - address family, IPv4, some otehr possible are AF_INET6, AF_BLUETOOTH, AF_UNIX
-# socket.SOCK_STREAM - TCP, conection-based, socket.SOCK_DGRAM - UDP, connectionless, datagrams, socket.SOCK_RAW - raw IP packets
+#function used to get random vact from a dictionary, via a key (i parameter)
+def randomFactGenerator(i):
+    #Facts - Source: https://www.thefactsite.com/top-100-random-funny-facts/
+    factDict={
+        0:'The_average_person_will_spend_six_months_of_their_life_waiting_for_red_lights_to_turn_green',
+        1:'Nearly_30,000_rubber_ducks_were_lost_at_sea_in_1992_and_are_still_being_discovered_today',
+        2:'Bottled_water_expiration_dates_are_for_the_bottle,_not_the_water.',
+        3:'Rich_Russians_hire_fake_ambulances',
+        4:'NASCAR_drivers_can_lose_up_to_10_pounds_in_sweat_due_to_high_temperatures_during_races',
+        5:'29th_May_is_officially_“Put_a_Pillow_on_Your_Fridge_Day"',
+        6:'The_United_States_Navy_has_started_using_Xbox_controllers_for_their_periscopes',
+        7:'Honeybees_can_recognize_human_faces',
+        8:'A_swarm_of_20,000_bees_followed_a_car_for_two_days_because_their_queen_was_stuck_inside',
+        }
+    return factDict.get(i,"Well, I'm just an awkward fact-stating ProBot")
+
+
+# Creating a socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Connect to a given ip and port
+# Connecting to a given ip and port
 client_socket.connect((IP, PORT))
 
-# Set connection to non-blocking state, so .recv() call won;t block, just return some exception we'll handle
-client_socket.setblocking(False)
+#Sending neccesary details to server so bot can join
+nickname = "CAP LS 302\r\n"
+user = "NICK " + my_username + "\r\nUSER " + my_username + " " + my_username + " " + str(IP) + " :" + my_username + "\r\n"
 
-# Prepare username and header and send them
-# We need to encode username to bytes, then count number of bytes and prepare header of fixed size, that we encode to bytes as well
-username = my_username.encode('utf-8')
-#username_header = f"{len(username):<{HEADER_LENGTH}}".encode('utf-8')
-client_socket.send(username)
+#Joining the #test channel - Change "test" to change the bot channel
+channel = "JOIN " + "#test\r\n"
 
-realname = my_realname.encode('utf-8')
-#realname_header = f"{len(realname):<{HEADER_LENGTH}}".encode('utf-8')
-client_socket.send(realname)
+#Sending the set parameters through the socket
+client_socket.send(nickname.encode("UTF-8"))
+client_socket.send(user.encode("UTF-8"))
+client_socket.send(channel.encode("UTF-8"))
 
+#Creating an empty string for the bot to send
+botmessage = ""
+
+#Loop to recieve messages
 while True:
 
-    try:
-        # Now we want to loop over received messages (there might be more than one) and print them
-        while True:
+    #While there is a message
+    while True:
 
-            # Receive our "header" containing username length, it's size is defined and constant
-            username_header = client_socket.recv(HEADER_LENGTH)
+            #receiv message from server/hex chat, decode, get sender information (nickname), and usern (username), using string manipulation on the message and assigning the values
+            message = client_socket.recv(2048)
+            message = message.decode("utf-8")
+            sender = message[message.find(":") + 1:message.find("!")]
+            usern = message[message.find("!") + 1:message.find("@")]
+            
+            print(message)
 
-            # If we received no data, server gracefully closed a connection, for example using socket.close() or socket.shutdown(socket.SHUT_RDWR)
-            if not len(username_header):
-                print('Connection closed by the server')
-                sys.exit()
-
-            # Convert header to int value
-            username_length = int(username_header.decode('utf-8').strip())
-
-            # Receive and decode username
-            username = client_socket.recv(username_length).decode('utf-8')
-
-            # Now do the same for message (as we received username, we received whole message, there's no need to check if it has any length)
-            message_header = client_socket.recv(HEADER_LENGTH)
-            message_length = int(message_header.decode('utf-8').strip())
-            message = client_socket.recv(message_length).decode('utf-8')
-
-            # Print message
-            print(f'{username} > {message}')
-
-            if message == "!time":
+            # Replying to the !time command via datetime library
+            if message.find("!time") != -1:
                 currenthour = datetime.datetime.now().time().hour
                 currentminute = datetime.datetime.now().time().minute
                 currentsecond = datetime.datetime.now().time().second
-                botmessage = (f'The current time is {currenthour}:{currentminute}:{currentsecond}')
+                botmessage = (f'{currenthour}:{currentminute}:{currentsecond}')
             
-            if message == "!day":
+            #Replying to the !day command 
+            elif message.find("!day") != -1:
                 dayindex = datetime.datetime.now().isoweekday()
                 currentday = getDayOfTheWeek(dayindex)
-                botmessage = (f'Today is a lovely {currentday}!')
-
-            if botmessage:
-                message = botmessage
-                botmessage = ""
+                botmessage = (f'{currentday}.')
+            
+            #Replying to the !date command
+            elif message.find("!date") != -1:
+                currentdate = datetime.datetime.now().day
+                currentmonth = datetime.datetime.now().month
+                currentyear = datetime.datetime.now().year
+                botmessage = (f'{currentdate}-{currentmonth}-{currentyear}')
+            
+            #Replying to the !help command, sends back list of commands that bot can perform
+            elif message.find("!help") != -1:
+                botmessage = (f'!time,!date,!day')
+            
+            #Checking if botmessage is still empty or filled with one of the command outputs
+            if botmessage:  
+                message = "PRIVMSG " + "#test" + " :" + botmessage + "\r\n"
+                botmessage = "" #Resetting the bot output message before ending the loop
                 message = message.encode('utf-8')
-                message_header = f"{len(message):<{HEADER_LENGTH}}".encode('utf-8')
-                client_socket.send(message_header + message)
+                client_socket.send(message)
 
-    except IOError as e:
-        # This is normal on non blocking connections - when there are no incoming data error is going to be raised
-        # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
-        # We are going to check for both - if one of them - that's expected, means no incoming data, continue as normal
-        # If we got different error code - something happened
-        if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
-            print('Reading error: {}'.format(str(e)))
-            sys.exit()
-
-        # We just did not receive anything
-        continue
-
-    except Exception as e:
-        # Any other exception - something happened, exit
-        print('Reading error: '.format(str(e)))
-        sys.exit()
+            #Replying with a random fact if the message sent isn't a command
+            elif message.find("#test") == -1:
+                botmessage = randomFactGenerator(random.randint(0,8)) #get fact from method
+                botmessage = "PRIVMSG " + sender + " :" + botmessage #form message to client
+                botmessage = botmessage.encode('utf-8') 
+                client_socket.send(botmessage) #send message via socket
